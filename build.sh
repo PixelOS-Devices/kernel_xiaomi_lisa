@@ -5,15 +5,13 @@
 
 SECONDS=0 # builtin bash timer
 ZIPNAME="QuicksilveR-lisa-$(date '+%Y%m%d-%H%M').zip"
-TC_DIR="$HOME/tc/clang-r437112b"
-GCC_64_DIR="$HOME/tc/aarch64-linux-android-4.9"
-GCC_32_DIR="$HOME/tc/arm-linux-androideabi-4.9"
+TC_DIR="$HOME/proton-clang"
 AK3_DIR="$HOME/AnyKernel3"
 DEFCONFIG="lisa_defconfig"
 
-MAKE_PARAMS="O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- LLVM=1 \
-	CROSS_COMPILE=$GCC_64_DIR/bin/aarch64-linux-android- \
-	CROSS_COMPILE_COMPAT=$GCC_32_DIR/bin/arm-linux-androideabi-"
+MAKE_PARAMS="O=out ARCH=arm64 CC=clang LLVM=1 \
+	CROSS_COMPILE=aarch64-linux-gnu- \
+	CROSS_COMPILE_COMPAT=arm-linux-gnueabi-" 
 
 export PATH="$TC_DIR/bin:$PATH"
 
