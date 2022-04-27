@@ -78,6 +78,8 @@ int suid_dumpable = 0;
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
+#define HWCOMPOSER_BIN_PREFIX "/vendor/bin/hw/vendor.qti.hardware.display.composer-service"
+
 static struct task_struct *fp_daemon;
 #define FP_DAEMON_PREFIX "/vendor/bin/hw/android.hardware.biometrics.fingerprint"
 #define MI_FP_DAEMON_PREFIX "/vendor/bin/hw/mfp-daemon"
@@ -1856,6 +1858,10 @@ static int __do_execve_file(int fd, struct filename *filename,
 				unlikely(!strncmp(filename->name,
 				MI_FP_DAEMON_PREFIX, strlen(MI_FP_DAEMON_PREFIX)))) {
 			fp_daemon = current;
+                } else if (unlikely(!strncmp(filename->name, HWCOMPOSER_BIN_PREFIX,
+					   strlen(HWCOMPOSER_BIN_PREFIX)))) {
+			current->flags |= PF_PERF_CRITICAL;
+			set_cpus_allowed_ptr(current, cpu_perf_mask);
 		}
 	}
 
