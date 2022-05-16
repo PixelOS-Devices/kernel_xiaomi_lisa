@@ -146,12 +146,19 @@ static u32 ufshcd_us_to_ahit(unsigned int timer)
 static ssize_t auto_hibern8_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
+	u32 ahit;
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 
 	if (!ufshcd_is_auto_hibern8_supported(hba))
 		return -EOPNOTSUPP;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", ufshcd_ahit_to_us(hba->ahit));
+	pm_runtime_get_sync(hba->dev);
+	ufshcd_hold(hba, false);
+	ahit = ufshcd_readl(hba, REG_AUTO_HIBERNATE_IDLE_TIMER);
+	ufshcd_release(hba);
+	pm_runtime_put_sync(hba->dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", ufshcd_ahit_to_us(ahit));
 }
 
 static ssize_t auto_hibern8_store(struct device *dev,
@@ -211,8 +218,11 @@ static ssize_t ufs_sysfs_read_desc_param(struct ufs_hba *hba,
 	if (param_size > 8)
 		return -EINVAL;
 
+	pm_runtime_get_sync(hba->dev);
 	ret = ufshcd_read_desc_param(hba, desc_id, desc_index,
 				param_offset, desc_buf, param_size);
+	pm_runtime_put_sync(hba->dev);
+
 	if (ret)
 		return -EINVAL;
 	switch (param_size) {
@@ -578,6 +588,7 @@ static ssize_t _name##_show(struct device *dev,				\
 	desc_buf = kzalloc(QUERY_DESC_MAX_SIZE, GFP_ATOMIC);		\
 	if (!desc_buf)                                                  \
 		return -ENOMEM;                                         \
+	pm_runtime_get_sync(hba->dev);					\
 	ret = ufshcd_query_descriptor_retry(hba,			\
 		UPIU_QUERY_OPCODE_READ_DESC, QUERY_DESC_IDN_DEVICE,	\
 		0, 0, desc_buf, &desc_len);				\
@@ -594,6 +605,7 @@ static ssize_t _name##_show(struct device *dev,				\
 		goto out;						\
 	ret = snprintf(buf, PAGE_SIZE, "%s\n", desc_buf);		\
 out:									\
+	pm_runtime_put_sync(hba->dev);					\
 	kfree(desc_buf);						\
 	return ret;							\
 }									\
@@ -632,12 +644,16 @@ static ssize_t _name##_show(struct device *dev,				\
 	bool flag;							\
 	u8 index = 0;							\
 	struct ufs_hba *hba = dev_get_drvdata(dev);			\
+	pm_runtime_get_sync(hba->dev);					\
 	if (ufshcd_is_wb_flags(QUERY_FLAG_IDN##_uname))			\
 		index = ufshcd_wb_get_query_index(hba);			\
 	if (ufshcd_query_flag(hba, UPIU_QUERY_OPCODE_READ_FLAG,		\
-		QUERY_FLAG_IDN##_uname, index, &flag))			\
+		QUERY_FLAG_IDN##_uname, index, &flag)) {		\
+		pm_runtime_put_sync(hba->dev);				\
 		return -EINVAL;						\
-	return sprintf(buf, "%s\n", flag ? "true" : "false"); \
+	}								\
+	pm_runtime_put_sync(hba->dev);					\
+	return snprintf(buf, PAGE_SIZE, "%s\n", flag ? "true" : "false"); \
 }									\
 static DEVICE_ATTR_RO(_name)
 
@@ -686,12 +702,16 @@ static ssize_t _name##_show(struct device *dev,				\
 	struct ufs_hba *hba = dev_get_drvdata(dev);			\
 	u32 value;							\
 	u8 index = 0;							\
+	pm_runtime_get_sync(hba->dev);					\
 	if (ufshcd_is_wb_attrs(QUERY_ATTR_IDN##_uname))			\
 		index = ufshcd_wb_get_query_index(hba);			\
 	if (ufshcd_query_attr(hba, UPIU_QUERY_OPCODE_READ_ATTR,		\
-		QUERY_ATTR_IDN##_uname, index, 0, &value))		\
+		QUERY_ATTR_IDN##_uname, index, 0, &value)) {		\
+		pm_runtime_put_sync(hba->dev);				\
 		return -EINVAL;						\
-	return sprintf(buf, "0x%08X\n", value);				\
+	}								\
+	pm_runtime_put_sync(hba->dev);					\
+	return snprintf(buf, PAGE_SIZE, "0x%08X\n", value);		\
 }									\
 static DEVICE_ATTR_RO(_name)
 
@@ -822,10 +842,15 @@ static ssize_t dyn_cap_needed_attribute_show(struct device *dev,
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct ufs_hba *hba = shost_priv(sdev->host);
 	u8 lun = ufshcd_scsi_to_upiu_lun(sdev->lun);
+	int ret;
 
-	if (ufshcd_query_attr(hba, UPIU_QUERY_OPCODE_READ_ATTR,
-		QUERY_ATTR_IDN_DYN_CAP_NEEDED, lun, 0, &value))
+	pm_runtime_get_sync(hba->dev);
+	ret = ufshcd_query_attr(hba, UPIU_QUERY_OPCODE_READ_ATTR,
+		QUERY_ATTR_IDN_DYN_CAP_NEEDED, lun, 0, &value);
+	pm_runtime_put_sync(hba->dev);
+	if (ret)
 		return -EINVAL;
+
 	return sprintf(buf, "0x%08X\n", value);
 }
 static DEVICE_ATTR_RO(dyn_cap_needed_attribute);
