@@ -197,6 +197,9 @@ static const char *machine_name_buf = NULL;
 #define SMEM_IMAGE_MACHINE_NAME_SIZE 75
 #endif
 
+int softsku_idx;
+module_param_named(softsku_idx, softsku_idx, int, 0644);
+
 /* Version 2 */
 static uint32_t socinfo_get_raw_id(void)
 {
