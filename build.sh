@@ -2,24 +2,24 @@
 #
 # Compile script for QuicksilveR kernel
 # Copyright (C) 2020-2021 Adithya R.
-
+# (edits for CrystalCore kernel @dkpost3)
+     
 SECONDS=0 # builtin bash timer
-TC_DIR="$HOME/tc/clang-r450784c"
-GCC_64_DIR="$HOME/tc/aarch64-linux-android-4.9"
-GCC_32_DIR="$HOME/tc/arm-linux-androideabi-4.9"
+TC_DIR="$HOME/clang/clang-r450784d"
 AK3_DIR="$HOME/AnyKernel3"
-DEFCONFIG="lisa_defconfig"
+DEFCONFIG="vendor/lahaina-qgki_defconfig vendor/xiaomi_QGKI.config vendor/lisa_QGKI.config"
 
-ZIPNAME="QuicksilveR-lisa-$(date '+%Y%m%d-%H%M').zip"
+git clone https://gitlab.com/lynnnnzx/clang-r450784e.git $TC_DIR
+
+ZIPNAME="CrystalCore-lisa-$(date '+%Y%m%d-%H%M').zip"
 
 if test -z "$(git rev-parse --show-cdup 2>/dev/null)" &&
    head=$(git rev-parse --verify HEAD 2>/dev/null); then
 	ZIPNAME="${ZIPNAME::-4}-$(echo $head | cut -c1-8).zip"
 fi
 
-MAKE_PARAMS="O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- LLVM=1 \
-	CROSS_COMPILE=$GCC_64_DIR/bin/aarch64-linux-android- \
-	CROSS_COMPILE_COMPAT=$GCC_32_DIR/bin/arm-linux-androideabi-"
+MAKE_PARAMS="O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- LD=ld.lld LLVM=1 LLVM_IAS=1 \
+	CROSS_COMPILE=$TC_DIR/bin/llvm-"
 
 export PATH="$TC_DIR/bin:$PATH"
 
@@ -57,7 +57,8 @@ if [ -f "$kernel" ] && [ -f "$dtb" ] && [ -f "$dtbo" ]; then
 	fi
 	cp $kernel AnyKernel3
 	cp $dtb AnyKernel3/dtb
-	python2 scripts/dtc/libfdt/mkdtboimg.py create AnyKernel3/dtbo.img --page_size=4096 $dtbo
+	wget -P scripts/dtc/libfdt/ https://raw.githubusercontent.com/Anonym3310/mkdtimg/master/mkdtboimg.py
+	python3 scripts/dtc/libfdt/mkdtboimg.py create AnyKernel3/dtbo.img --page_size=4096 $dtbo
 	cp $(find out/modules/lib/modules/5.4* -name '*.ko') AnyKernel3/modules/vendor/lib/modules/
 	cp out/modules/lib/modules/5.4*/modules.{alias,dep,softdep} AnyKernel3/modules/vendor/lib/modules
 	cp out/modules/lib/modules/5.4*/modules.order AnyKernel3/modules/vendor/lib/modules/modules.load
@@ -75,3 +76,6 @@ else
 	echo -e "\nCompilation failed!"
 	exit 1
 fi
+
+rm -rf $TC_DIR
+rm -rf scripts/dtc/libfdt/mkdtboimg.py
